@@ -1,6 +1,8 @@
 # qsub_utils
 
 import os
+import stat
+import re
 import subprocess
 import platform
 import logging
@@ -9,55 +11,52 @@ PBS_CONFIGURATION = {}
 logger = logging.getLogger('qsub_utils')
 
 
-def setup_configuration(nodes='', stdout='', stderr=''):
+def setup_configuration(nodes=''):
     """
     Method to setup PBS configuration
     :param nodes: specify nodes with list of features. `-l nodes={nodes}`
-    :param stdout: specify stdout file. `-o {stdout}`
-    :param stderr: specify stderr file. `-e {stderr}`
     """
-    global PBS_CONFIGURATION
-    conf = "#PBS"
+    global PBS_CONFIGURATION   
     if len(nodes) > 0:
         PBS_CONFIGURATION['nodes'] = nodes
-        conf += " -l nodes=%s" % nodes
-    if len(stdout) > 0:
-        PBS_CONFIGURATION['stdout'] = stdout
-        conf += " -o %s" % stdout
-    if len(stderr) > 0:
-        PBS_CONFIGURATION['stderr'] = stderr
-        conf += " -e %s" % stderr
+        
 
-    PBS_CONFIGURATION['cmd'] = conf
+def get_configuration_str(conf_dict):
+    """
+    Method to convert configuration dictionary to string
+    """
+    conf_str = "#PBS"    
+    if 'nodes' in conf_dict:
+        conf_str += " -l nodes=%s" % conf_dict['nodes']
+    if 'name' in conf_dict:
+        conf_str += " -N %s" % conf_dict['name']
+    if 'cwd' in conf_dict:         
+        conf_str += " -d %s" % conf_dict['cwd'] 
+    if 'stdout' in conf_dict:
+        conf_str += " -o %s" % conf_dict['stdout']
+    if 'stderr' in conf_dict:        
+        conf_str += " -e %s" % conf_dict['stderr']           
+    return conf_str
 
-
-def write_launch_file(cmd_str, name, cwd='', env=''):
+    
+def write_launch_file(cmd_str, conf_dict, env=''):
     """
     Method to write a PBS launch file for qsub
 
     :param cmd_str: command string, e.g "python -c \'import sys; sys.print\'"
-    :param name: name of the job
-    :param cwd: current working directory
+    :param conf_dict: configuration dictionary, {'name': 'aName', 'cwd':'path/to/dir/', 'nodes': 'nodes_conf',...}
     :param env: environmanet string, e.g. "export PATH=$PATH:/path/to/bin"
     """
-    assert len(cmd_str) > 0, "Job command can't be empty"
-    assert len(name) > 0, "Job name can't be empty"
-    assert len(PBS_CONFIGURATION) > 0, "PBS configuration is not setup. Call `setup_configuration` before."
-    filename = os.path.join(cwd, "job_%s.launch" % name)
-    with open(filename, 'w') as w:
-        conf = PBS_CONFIGURATION['cmd']
-        conf += " -N %s" % name
-        if len(cwd) > 0:
-            conf += " -d %s" % cwd
-        w.write(conf + '\n')
+    filename = conf_dict['launch']
+    with open(filename, 'w') as w:        
+        w.write(get_configuration_str(conf_dict) + '\n\n')
         if len(env) > 0:
             w.write(env + '\n')
         w.write(cmd_str)
+    os.chmod(filename, stat.S_IRWXG | stat.S_IRWXU | stat.S_IRWXO)
 
-    return filename
 
-
-def submit_job(cmd, name, cwd='', env=''):
+def submit_job(cmd, name, cwd, env=''):
     """
     Method to submit a job writing a launch file and using qsub
     `qsub job_{name}.launch`
@@ -67,27 +66,32 @@ def submit_job(cmd, name, cwd='', env=''):
     :param cwd: current working directory
     :param env: environmanet string, e.g. "export PATH=$PATH:/path/to/bin"
     """
+    assert len(name) > 0, "Job name can not be empty"
+    assert len(cmd) > 0, "Job command can not be empty" 
+    assert len(cwd) > 0, "Job working directory can not be empty"
+    
     if ' ' in name:
-        name = name.replace(' ', '_')
-    filename = write_launch_file(' '.join(cmd), name, cwd, env)
-    program = ['qsub', filename]
+        name = name.replace(' ', '_')    
+
+    filename = os.path.join(cwd, '%s.launch' % name)
+        
+    job_conf = dict()
+    job_conf['nodes'] = PBS_CONFIGURATION['nodes']
+    job_conf['name'] = name
+    if len(cwd) > 0: job_conf['cwd'] = cwd
+    job_conf['launch'] = filename
+        
+    write_launch_file(' '.join(cmd), job_conf, env)
+    program = ['qsub', '-V', '-I', '-x', filename]
     process = subprocess.Popen(program,
                                stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT,
-                               close_fds=False if platform.system() == 'Windows' else True)
-    process.wait()
-    job_id = process.stdout.read()
-    assert job_id is not None and len(job_id) > 0, "Failed to fetch job id from qsub"
-
-    job_info = dict()
-    job_info['id'] = job_id.replace('\n', '')
-    job_info['launch_filename'] = filename
-    job_info['name'] = name
-    job_info['cwd'] = cwd
-    job_info['stdout_filename'] = os.path.join(PBS_CONFIGURATION['stdout'], "%s.o%s" % (name, _get_id(job_id)))
-    job_info['stderr_filename'] = os.path.join(PBS_CONFIGURATION['stderr'], "%s.e%s" % (name, _get_id(job_id)))
-
-    return job_info
+                               stderr=subprocess.STDOUT)
+    line = process.stdout.readline()    
+    m = re.search("\d+.\w+", line)
+    assert m is not None, "Job id is not found in the first line of output: %s" % line
+    job_id = m.group(0)
+    job_conf['id'] = job_id
+    return process, job_conf
 
 
 def delete_job(job_id):
@@ -148,22 +152,30 @@ def job_is_running(job_id):
 
 
 def get_stdout(job_info):
-    filename = job_info['stdout_filename']
+    filename = job_info['stdout']
     if not os.path.exists(filename):
         logger.warn("Stdout filename %s' is not found" % filename)
         return None
     out = []
     with open(filename, 'r') as r:
-        out.append(r.readline())
+        while True:
+            line = r.readline()
+            if len(line) == 0:
+                break
+            out.append(line)
     return out
 
 
 def get_stderr(job_info):
-    filename = job_info['stderr_filename']
+    filename = job_info['stderr']
     if not os.path.exists(filename):
         logger.warn("Stdout filename %s' is not found" % filename)
         return None
     out = []
     with open(filename, 'r') as r:
-        out.append(r.readline())
+        while True:
+            line = r.readline()
+            if len(line) == 0:
+                break
+        out.append(line)
     return out
