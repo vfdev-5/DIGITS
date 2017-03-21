@@ -63,9 +63,12 @@ def submit_job(cmd, name, cwd='', env=''):
     `qsub job_{name}.launch`
 
     :param cmd: list of commands, e.g. ['python', '-c', '\"import sys; print sys.path\"']
-
+    :param name: name of the job
+    :param cwd: current working directory
+    :param env: environmanet string, e.g. "export PATH=$PATH:/path/to/bin"
     """
-
+    if ' ' in name:
+        name = name.replace(' ', '_')
     filename = write_launch_file(' '.join(cmd), name, cwd, env)
     program = ['qsub', filename]
     process = subprocess.Popen(program,
@@ -113,9 +116,8 @@ def get_stats(job_id):
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
                                close_fds=False if platform.system() == 'Windows' else True)
-    returncode = process.wait()
+    process.wait()
     out = process.stdout.read()
-    err = process.stderr.read()
     out = out.split('\n')
     stats = {}
     if len(out) > 0:

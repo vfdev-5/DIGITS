@@ -109,6 +109,14 @@ class GridEngineTask(LocalTask):
         #     self.status = Status.ERROR
         #     return False
         else:
+            print "\n\n================"
+            print "- STDOUT -"
+            print utils.qsub_utils.get_stdout(self.job_info)
+
+            print "\n\n================"
+            print "- STDERR -"
+            print utils.qsub_utils.get_stderr(self.job_info)
+
             self.logger.info('%s task completed.' % self.name())
             self.status = Status.DONE
             return True
