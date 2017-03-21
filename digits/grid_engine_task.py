@@ -47,7 +47,8 @@ class GridEngineTask(LocalTask):
         # https://docs.python.org/2/library/subprocess.html#converting-argument-sequence
         self.logger.info('Task subprocess args: "{}"'.format(args))
 
-        env_str = ' '.join(['%s=%s' % (k, env[k]) for k in env])
+        keys = ['PYTHONPATH', 'PATH', 'LD_LIBRARY_PATH', ]
+        env_str = ' '.join(['%s=%s' % (k, env[k]) for k in env if k in env])
         self.job_info = utils.qsub_utils.submit_job(cmd=args, name=self.name(), cwd=self.job_dir, env=env_str)
         try:
             sigterm_time = None  # When was the SIGTERM signal sent
@@ -58,7 +59,7 @@ class GridEngineTask(LocalTask):
                 keys = ['Job_Name', 'job_state', 'resources_used.walltime',
                         'resources_used.mem', 'resources_used.vmem',
                         'Output_Path', 'Error_Path']
-                lines = [ k + " : " + stats[k] for k in keys]
+                lines = [k + " : " + stats[k] for k in keys if k in stats]
                 for line in lines:
                     if self.aborted.is_set():
                         if sigterm_time is None:
