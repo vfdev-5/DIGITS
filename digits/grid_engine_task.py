@@ -48,7 +48,7 @@ class GridEngineTask(LocalTask):
         self.logger.info('Task subprocess args: "{}"'.format(args))
 
         keys = ['PYTHONPATH', 'PATH', 'LD_LIBRARY_PATH', ]
-        env_str = ' '.join(['%s=%s' % (k, env[k]) for k in env if k in env])
+        env_str = ' '.join(['%s=%s' % (k, env[k]) for k in env if k in keys])
         self.job_info = utils.qsub_utils.submit_job(cmd=args, name=self.name(), cwd=self.job_dir, env=env_str)
         try:
             sigterm_time = None  # When was the SIGTERM signal sent
