@@ -47,7 +47,8 @@ class GridEngineTask(LocalTask):
         # https://docs.python.org/2/library/subprocess.html#converting-argument-sequence
         self.logger.info('Task subprocess args: "{}"'.format(args))
 
-        self.job_info = utils.qsub_utils.submit_job(cmd=args, name=self.name(), cwd=self.job_dir, env=env)
+        env_str = ' '.join(['%s=%s' % (k, env[k]) for k in env])
+        self.job_info = utils.qsub_utils.submit_job(cmd=args, name=self.name(), cwd=self.job_dir, env=env_str)
         try:
             sigterm_time = None  # When was the SIGTERM signal sent
             sigterm_timeout = 2  # When should the SIGKILL signal be sent
@@ -107,7 +108,7 @@ class GridEngineTask(LocalTask):
         #     self.after_runtime_error()
         #     self.status = Status.ERROR
         #     return False
-        else:                        
+        else:
             self.logger.info('%s task completed.' % self.name())
             self.status = Status.DONE
             return True

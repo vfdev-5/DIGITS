@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 
-
-from local_task import LocalTask
-from grid_engine_task import GridEngineTask
+from .local_task import LocalTask
+from .grid_engine_task import GridEngineTask
 from .utils import qsub_utils
+
 
 Task = None
 

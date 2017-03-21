@@ -38,9 +38,8 @@ def main():
 
     args = vars(parser.parse_args())
 
-    import digits
-    from task import setup_backend
-    setup_backend(backend_type='grid_engine',
+    import digits.task
+    digits.task.setup_backend(backend_type='grid_engine',
                   nodes='1:knl7210:ram96gb',
                   stdout='/home/u2459',
                   stderr='/home/u2459')
