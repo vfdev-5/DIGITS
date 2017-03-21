@@ -40,7 +40,10 @@ def main():
 
     import digits
     from task import setup_backend
-    setup_backend(backend_type='grid_engine')
+    setup_backend(backend_type='grid_engine',
+                  nodes='1:knl7210:ram96gb',
+                  stdout='/home/u2459',
+                  stderr='/home/u2459')
 
     if args['version']:
         print digits.__version__

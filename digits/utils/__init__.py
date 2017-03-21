@@ -164,4 +164,4 @@ def parse_version(*args):
 
 # Import the other utility functions
 
-from . import constants, image, time_filters, errors, forms, routing, auth  # noqa
+from . import constants, image, time_filters, errors, forms, routing, auth, qsub_utils  # noqa
