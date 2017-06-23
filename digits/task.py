@@ -5,7 +5,7 @@ from .grid_engine_task import GridEngineTask
 from .utils import qsub_utils
 
 
-Task = None
+Task = LocalTask #  by default is a LocalTask
 
 
 def setup_backend(backend_type='local', **kwargs):

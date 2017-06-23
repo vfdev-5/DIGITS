@@ -39,7 +39,7 @@ def main():
     args = vars(parser.parse_args())
 
     import digits.task
-    digits.task.setup_backend(backend_type='grid_engine', nodes='2:knl7210:ram96gb')
+    digits.task.setup_backend(backend_type='grid_engine', nodes='4:knl7210:ram96gb')
     #digits.task.setup_backend(backend_type='local')
 
     if args['version']:

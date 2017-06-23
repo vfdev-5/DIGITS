@@ -71,7 +71,9 @@ def submit_job(cmd, name, cwd, env=''):
     assert len(cwd) > 0, "Job working directory can not be empty"
     
     if ' ' in name:
-        name = name.replace(' ', '_')    
+        name = name.replace(' ', '_')
+        name = name.replace('(', '_')
+        name = name.replace(')', '_')
 
     filename = os.path.join(cwd, '%s.launch' % name)
         
